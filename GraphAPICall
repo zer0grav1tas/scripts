@@ -1,30 +1,97 @@
-# PowerShell equivalent of the bash script for Microsoft Graph API calls
+# PowerShell script for Microsoft Graph API calls using certificate authentication
 
 param(
     [Parameter(Mandatory)]
-    [string]$TenantId,          # "your-tenant-id"
+    [string]$TenantId,              # "your-tenant-id"
     
     [Parameter(Mandatory)]
-    [string]$ClientId,          # "your-client-id"
+    [string]$ClientId,              # "your-client-id"
     
     [Parameter(Mandatory)]
-    [string]$ClientSecret,      # "your-client-secret"
+    [string]$CertificateThumbprint, # "your-certificate-thumbprint"
     
     [Parameter(Mandatory)]
-    [string]$GraphEndpoint      # "query-uri"
+    [string]$GraphEndpoint,         # "query-uri"
+    
+    [Parameter()]
+    [string]$CertificateStore = "Cert:\CurrentUser\My"  # Certificate store location
 )
 
-try {
-    Write-Host "Getting access token..." -ForegroundColor Green
+function New-JwtAssertion {
+    param(
+        [string]$ClientId,
+        [string]$TenantId,
+        [string]$CertificateThumbprint,
+        [string]$CertificateStore
+    )
     
-    # Step 1: Get access token
+    try {
+        # Get the certificate
+        $Certificate = Get-ChildItem -Path "$CertificateStore\$CertificateThumbprint" -ErrorAction Stop
+        
+        if (-not $Certificate) {
+            throw "Certificate with thumbprint $CertificateThumbprint not found in $CertificateStore"
+        }
+        
+        Write-Host "✓ Certificate found: $($Certificate.Subject)" -ForegroundColor Green
+        
+        # Create JWT header
+        $JwtHeader = @{
+            alg = "RS256"
+            typ = "JWT"
+            x5t = [Convert]::ToBase64String($Certificate.GetCertHash()) -replace '\+', '-' -replace '/', '_' -replace '='
+        }
+        
+        # Create JWT payload
+        $Now = [DateTimeOffset]::UtcNow
+        $JwtPayload = @{
+            aud = "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token"
+            exp = $Now.AddMinutes(10).ToUnixTimeSeconds()
+            iss = $ClientId
+            jti = [Guid]::NewGuid().ToString()
+            nbf = $Now.ToUnixTimeSeconds()
+            sub = $ClientId
+        }
+        
+        # Encode header and payload
+        $HeaderEncoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($JwtHeader | ConvertTo-Json -Compress))) -replace '\+', '-' -replace '/', '_' -replace '='
+        $PayloadEncoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($JwtPayload | ConvertTo-Json -Compress))) -replace '\+', '-' -replace '/', '_' -replace '='
+        
+        # Create signature
+        $StringToSign = "$HeaderEncoded.$PayloadEncoded"
+        $BytesToSign = [Text.Encoding]::UTF8.GetBytes($StringToSign)
+        
+        # Sign with certificate private key
+        $Signature = $Certificate.PrivateKey.SignData($BytesToSign, [Security.Cryptography.HashAlgorithmName]::SHA256, [Security.Cryptography.RSASignaturePadding]::Pkcs1)
+        $SignatureEncoded = [Convert]::ToBase64String($Signature) -replace '\+', '-' -replace '/', '_' -replace '='
+        
+        # Combine to create JWT
+        $Jwt = "$HeaderEncoded.$PayloadEncoded.$SignatureEncoded"
+        
+        return $Jwt
+        
+    } catch {
+        Write-Error "Failed to create JWT assertion: $($_.Exception.Message)"
+        throw
+    }
+}
+
+try {
+    Write-Host "Getting access token using certificate authentication..." -ForegroundColor Green
+    Write-Host "Certificate Thumbprint: $CertificateThumbprint" -ForegroundColor Gray
+    
+    # Step 1: Create JWT assertion
+    $JwtAssertion = New-JwtAssertion -ClientId $ClientId -TenantId $TenantId -CertificateThumbprint $CertificateThumbprint -CertificateStore $CertificateStore
+    
+    # Step 2: Get access token using certificate assertion
     $TokenUri = "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token"
     
     $TokenBody = @{
-        client_id     = $ClientId
-        client_secret = $ClientSecret
-        scope         = "https://graph.microsoft.com/.default"
-        grant_type    = "client_credentials"
+        client_id             = $ClientId
+        client_assertion_type = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+        client_assertion      = $JwtAssertion
+        scope                 = "https://graph.microsoft.com/.default"
+        grant_type            = "client_credentials"
     }
     
     $TokenResponse = Invoke-RestMethod -Uri $TokenUri -Method Post -Body $TokenBody -ContentType "application/x-www-form-urlencoded"
@@ -85,24 +152,25 @@ try {
 .\GraphAPI-Call.ps1 -TenantId "your-tenant-id" -ClientId "your-client-id" -ClientSecret "your-secret" -GraphEndpoint "https://graph.microsoft.com/v1.0/users?`$select=displayName,userPrincipalName,id"
 #>
 
-# Alternative: Interactive version with prompts
+# Alternative: Interactive version with certificate prompts
 function Invoke-GraphApiInteractive {
     $TenantId = Read-Host "Enter Tenant ID"
     $ClientId = Read-Host "Enter Client ID"
-    $ClientSecret = Read-Host "Enter Client Secret" -AsSecureString
+    $CertificateThumbprint = Read-Host "Enter Certificate Thumbprint"
     $GraphEndpoint = Read-Host "Enter Graph API endpoint URL"
     
-    # Convert secure string back to plain text
-    $PlainSecret = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ClientSecret))
-    
     try {
+        # Get JWT assertion
+        $JwtAssertion = New-JwtAssertion -ClientId $ClientId -TenantId $TenantId -CertificateThumbprint $CertificateThumbprint
+        
         # Get token
         $TokenUri = "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token"
         $TokenBody = @{
-            client_id     = $ClientId
-            client_secret = $PlainSecret
-            scope         = "https://graph.microsoft.com/.default"
-            grant_type    = "client_credentials"
+            client_id             = $ClientId
+            client_assertion_type = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+            client_assertion      = $JwtAssertion
+            scope                 = "https://graph.microsoft.com/.default"
+            grant_type            = "client_credentials"
         }
         
         $TokenResponse = Invoke-RestMethod -Uri $TokenUri -Method Post -Body $TokenBody -ContentType "application/x-www-form-urlencoded"
@@ -122,20 +190,99 @@ function Invoke-GraphApiInteractive {
         
     } catch {
         Write-Error "Failed: $($_.Exception.Message)"
-    } finally {
-        # Clear sensitive data
-        $PlainSecret = $null
     }
 }
 
-# One-liner version for quick testing
-function Get-GraphData {
-    param($TenantId, $ClientId, $ClientSecret, $Endpoint)
+# One-liner version for quick testing with certificate
+function Get-GraphDataWithCert {
+    param($TenantId, $ClientId, $CertificateThumbprint, $Endpoint)
     
-    $token = (Invoke-RestMethod -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" -Method Post -Body @{client_id=$ClientId;client_secret=$ClientSecret;scope="https://graph.microsoft.com/.default";grant_type="client_credentials"} -ContentType "application/x-www-form-urlencoded").access_token
-    
-    return Invoke-RestMethod -Uri $Endpoint -Headers @{Authorization="Bearer $token";'Content-Type'='application/json'} -Method Get
+    try {
+        # Get certificate
+        $cert = Get-ChildItem "Cert:\CurrentUser\My\$CertificateThumbprint"
+        
+        # Create JWT
+        $header = @{alg="RS256";typ="JWT";x5t=[Convert]::ToBase64String($cert.GetCertHash()) -replace '\+','-' -replace '/','_' -replace '='} | ConvertTo-Json -Compress
+        $payload = @{aud="https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token";exp=([DateTimeOffset]::UtcNow.AddMinutes(10).ToUnixTimeSeconds());iss=$ClientId;jti=[Guid]::NewGuid().ToString();nbf=([DateTimeOffset]::UtcNow.ToUnixTimeSeconds());sub=$ClientId} | ConvertTo-Json -Compress
+        
+        $headerEncoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($header)) -replace '\+','-' -replace '/','_' -replace '='
+        $payloadEncoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($payload)) -replace '\+','-' -replace '/','_' -replace '='
+        
+        $signature = $cert.PrivateKey.SignData([Text.Encoding]::UTF8.GetBytes("$headerEncoded.$payloadEncoded"), [Security.Cryptography.HashAlgorithmName]::SHA256, [Security.Cryptography.RSASignaturePadding]::Pkcs1)
+        $signatureEncoded = [Convert]::ToBase64String($signature) -replace '\+','-' -replace '/','_' -replace '='
+        
+        $jwt = "$headerEncoded.$payloadEncoded.$signatureEncoded"
+        
+        # Get token
+        $token = (Invoke-RestMethod -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" -Method Post -Body @{client_id=$ClientId;client_assertion_type="urn:ietf:params:oauth:client-assertion-type:jwt-bearer";client_assertion=$jwt;scope="https://graph.microsoft.com/.default";grant_type="client_credentials"} -ContentType "application/x-www-form-urlencoded").access_token
+        
+        # Make Graph call
+        return Invoke-RestMethod -Uri $Endpoint -Headers @{Authorization="Bearer $token";'Content-Type'='application/json'} -Method Get
+        
+    } catch {
+        Write-Error "Failed: $($_.Exception.Message)"
+    }
 }
 
-# Usage: 
-# $result = Get-GraphData -TenantId "xxx" -ClientId "xxx" -ClientSecret "xxx" -Endpoint "https://graph.microsoft.com/v1.0/sites"
+# Certificate management helper functions
+function Get-AvailableCertificates {
+    Write-Host "Available certificates in CurrentUser\My store:" -ForegroundColor Cyan
+    Get-ChildItem "Cert:\CurrentUser\My" | Where-Object { $_.HasPrivateKey } | ForEach-Object {
+        Write-Host "Thumbprint: $($_.Thumbprint)" -ForegroundColor Yellow
+        Write-Host "Subject: $($_.Subject)" -ForegroundColor White
+        Write-Host "Not After: $($_.NotAfter)" -ForegroundColor Gray
+        Write-Host "---"
+    }
+}
+
+function Test-CertificateAccess {
+    param([string]$Thumbprint)
+    
+    try {
+        $cert = Get-ChildItem "Cert:\CurrentUser\My\$Thumbprint" -ErrorAction Stop
+        
+        if (-not $cert.HasPrivateKey) {
+            Write-Warning "Certificate does not have a private key"
+            return $false
+        }
+        
+        # Test signing capability
+        $testData = [Text.Encoding]::UTF8.GetBytes("test")
+        $signature = $cert.PrivateKey.SignData($testData, [Security.Cryptography.HashAlgorithmName]::SHA256, [Security.Cryptography.RSASignaturePadding]::Pkcs1)
+        
+        Write-Host "✓ Certificate is valid and has signing capability" -ForegroundColor Green
+        return $true
+        
+    } catch {
+        Write-Error "Certificate test failed: $($_.Exception.Message)"
+        return $false
+    }
+}
+
+# Usage examples:
+<#
+# Example 1: Get Entra ID App Registrations
+.\GraphAPI-Cert.ps1 -TenantId "1234-1234-1234-1234" -ClientId "1234-1234-1234-1234" -CertificateThumbprint "A1B2C3D4E5F6789012345678901234567890ABCD" -GraphEndpoint "https://graph.microsoft.com/v1.0/applications?`$select=id,displayName,passwordCredentials,keyCredentials"
+
+# Example 2: Get SharePoint sites
+.\GraphAPI-Cert.ps1 -TenantId "your-tenant-id" -ClientId "your-client-id" -CertificateThumbprint "your-cert-thumbprint" -GraphEndpoint "https://graph.microsoft.com/v1.0/sites"
+
+# Example 3: Get specific site
+.\GraphAPI-Cert.ps1 -TenantId "your-tenant-id" -ClientId "your-client-id" -CertificateThumbprint "your-cert-thumbprint" -GraphEndpoint "https://graph.microsoft.com/v1.0/sites/yourtenant.sharepoint.com:/sites/yoursite"
+
+# Example 4: List available certificates
+Get-AvailableCertificates
+
+# Example 5: Test a certificate
+Test-CertificateAccess -Thumbprint "A1B2C3D4E5F6789012345678901234567890ABCD"
+
+# Example 6: One-liner usage
+$sites = Get-GraphDataWithCert -TenantId "xxx" -ClientId "xxx" -CertificateThumbprint "xxx" -Endpoint "https://graph.microsoft.com/v1.0/sites"
+$sites.value | Select-Object displayName, webUrl, id
+
+# Example 7: Create and use a self-signed certificate
+$cert = New-SelfSignedCertificate -Subject "CN=GraphAPI-Client" -CertStoreLocation "Cert:\CurrentUser\My" -KeyExportPolicy Exportable -KeySpec Signature
+Write-Host "New certificate thumbprint: $($cert.Thumbprint)"
+Export-Certificate -Cert $cert -FilePath ".\GraphAPI-Client.cer"
+Write-Host "Upload the .cer file to your Azure AD app registration"
+#>
