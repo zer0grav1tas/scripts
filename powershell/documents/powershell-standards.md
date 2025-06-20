@@ -6,12 +6,12 @@
 
 ### 1. Use PascalCase for Functions, Variables, and Parameters
 ```powershell
-# ✅ Good
+# Good
 function Get-UserAccount { }
 $UserName = "JohnDoe"
 $DatabaseConnection = "Server01"
 
-# ❌ Avoid
+# Avoid
 function get_user_account { }
 $userName = "JohnDoe"
 $database_connection = "Server01"
@@ -19,7 +19,7 @@ $database_connection = "Server01"
 
 ### 2. Functions Should Follow Verb-Noun Pattern
 ```powershell
-# ✅ Good - Use approved PowerShell verbs
+# Good - Use approved PowerShell verbs
 Get-User
 Set-Configuration  
 New-Database
@@ -27,7 +27,7 @@ Remove-TempFiles
 Test-Connection
 Invoke-Backup
 
-# ❌ Avoid - Non-standard verbs
+# Avoid - Non-standard verbs
 Fetch-User
 Configure-Settings
 Create-Database
@@ -119,12 +119,12 @@ Delete-TempFiles
 
 ### 4. One Task Per Script - Break Tasks into Small Units
 ```powershell
-# ✅ Good - Focused, single-purpose scripts
+# Good - Focused, single-purpose scripts
 .\Get-SystemInfo.ps1          # Only retrieves system information
 .\Backup-UserData.ps1         # Only handles user data backup
 .\Send-StatusReport.ps1       # Only sends reports
 
-# ❌ Avoid - Monolithic scripts doing everything
+# Avoid - Monolithic scripts doing everything
 .\MasterMaintenanceScript.ps1 # Does backup, cleanup, reporting, updates, etc.
 ```
 
@@ -213,7 +213,7 @@ try {
 
 ### 6. Always Use Try-Catch for Critical Operations
 ```powershell
-# ✅ Good - Comprehensive error handling
+# Good - Comprehensive error handling
 try {
     $result = Invoke-RestMethod $apiUrl -ErrorAction Stop
     Write-LogMessage "API call successful"
@@ -225,18 +225,18 @@ try {
     throw
 }
 
-# ❌ Avoid - No error handling
+# Avoid - No error handling
 $result = Invoke-RestMethod $apiUrl
 ```
 
 ### 7. Use Proper Error Actions
 ```powershell
-# ✅ Good - Explicit error handling
+# Good - Explicit error handling
 Get-Item $path -ErrorAction Stop          # Convert to terminating error
 Get-Process $name -ErrorAction SilentlyContinue  # Suppress expected errors
 Copy-Item $source $dest -ErrorAction Continue    # Log but continue
 
-# ❌ Avoid - Relying on defaults without consideration
+# Avoid - Relying on defaults without consideration
 Get-Item $path    # Unclear what happens on error
 ```
 
@@ -246,7 +246,7 @@ Get-Item $path    # Unclear what happens on error
 ```powershell
 [CmdletBinding()]
 param(
-    # ✅ Good - Comprehensive validation
+    # Good - Comprehensive validation
     [Parameter(
         Mandatory = $true,
         Position = 0,
@@ -270,14 +270,14 @@ param(
 
 ### 9. Use Meaningful Default Values
 ```powershell
-# ✅ Good - Sensible defaults
+# Good - Sensible defaults
 param(
     [string]$LogPath = (Join-Path $PSScriptRoot "logs"),
     [int]$TimeoutSeconds = 30,
     [switch]$WhatIf = $false
 )
 
-# ❌ Avoid - No defaults for optional parameters
+# Avoid - No defaults for optional parameters
 param(
     [string]$LogPath,
     [int]$TimeoutSeconds,
@@ -289,7 +289,7 @@ param(
 
 ### 10. Use Consistent Indentation and Spacing
 ```powershell
-# ✅ Good - Consistent 4-space indentation
+# Good - Consistent 4-space indentation
 if ($condition) {
     foreach ($item in $collection) {
         if ($item.Property -eq $value) {
@@ -298,7 +298,7 @@ if ($condition) {
     }
 }
 
-# ❌ Avoid - Inconsistent spacing
+# Avoid - Inconsistent spacing
 if($condition){
 foreach($item in $collection){
 if($item.Property-eq$value){
@@ -308,7 +308,7 @@ Write-Output $item
 
 ### 11. Use Splatting for Multiple Parameters
 ```powershell
-# ✅ Good - Clean and readable
+# Good - Clean and readable
 $copyParams = @{
     Path        = $sourcePath
     Destination = $destinationPath
@@ -318,13 +318,13 @@ $copyParams = @{
 }
 Copy-Item @copyParams
 
-# ❌ Avoid - Long parameter lines
+# Avoid - Long parameter lines
 Copy-Item -Path $sourcePath -Destination $destinationPath -Recurse -Force -ErrorAction Stop
 ```
 
 ### 12. Use Here-Strings for Multi-line Text
 ```powershell
-# ✅ Good - Clean multi-line strings
+# Good - Clean multi-line strings
 $emailBody = @"
 Backup Process Completed
 
@@ -336,7 +336,7 @@ Summary:
 Please review the attached log file for details.
 "@
 
-# ❌ Avoid - Concatenated strings
+# Avoid - Concatenated strings
 $emailBody = "Backup Process Completed`n`n" + 
              "Summary:`n" + 
              "- Files processed: $fileCount`n" + 
@@ -347,13 +347,13 @@ $emailBody = "Backup Process Completed`n`n" +
 
 ### 13. Use Pipeline Efficiently
 ```powershell
-# ✅ Good - Efficient pipeline usage
+# Good - Efficient pipeline usage
 Get-ChildItem $path -Recurse | 
     Where-Object { $_.Extension -eq '.log' } | 
     Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) } |
     Remove-Item -WhatIf
 
-# ❌ Avoid - Multiple iterations
+# Avoid - Multiple iterations
 $files = Get-ChildItem $path -Recurse
 $logFiles = @()
 foreach ($file in $files) {
@@ -365,11 +365,11 @@ foreach ($file in $files) {
 
 ### 14. Use Approved Cmdlets Over .NET Methods When Available
 ```powershell
-# ✅ Good - PowerShell native cmdlets
+# Good - PowerShell native cmdlets
 $content = Get-Content $filePath
 Set-Content $outputPath -Value $processedContent
 
-# ❌ Avoid when PowerShell alternatives exist
+# Avoid when PowerShell alternatives exist
 $content = [System.IO.File]::ReadAllText($filePath)
 [System.IO.File]::WriteAllText($outputPath, $processedContent)
 ```
@@ -396,18 +396,18 @@ function Process-Data {
 
 ### 16. Handle Credentials Securely
 ```powershell
-# ✅ Good - Secure credential handling
+# Good - Secure credential handling
 $credential = Get-Credential -Message "Enter service account credentials"
 Invoke-Command -ComputerName $server -Credential $credential -ScriptBlock { }
 
-# ❌ Avoid - Plain text credentials
+# Avoid - Plain text credentials
 $password = "MyPassword123"
 $username = "ServiceAccount"
 ```
 
 ### 17. Validate User Input
 ```powershell
-# ✅ Good - Input validation
+# Good - Input validation
 [ValidatePattern("^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")]
 [string]$EmailAddress
 
@@ -441,7 +441,7 @@ function Remove-OldLogFiles {
 
 ### 19. Use Consistent Return Objects
 ```powershell
-# ✅ Good - Consistent object structure
+# Good - Consistent object structure
 function Get-BackupStatus {
     [CmdletBinding()]
     param([string]$Path)
