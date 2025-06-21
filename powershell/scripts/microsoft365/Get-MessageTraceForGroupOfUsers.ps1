@@ -59,7 +59,7 @@
     Query Graph API
 #>
 
-param(
+params(
     [Parameter(Mandatory)]
     [string]$Organization,
     
