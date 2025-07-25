@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SharePoint Site Compliance Report</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .email-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            border-bottom: 3px solid #0078d4;
+            padding-bottom: 20px;
+            margin-bottom: 25px;
+        }
+        .header h1 {
+            color: #0078d4;
+            margin: 0;
+            font-size: 24px;
+        }
+        .header .date {
+            color: #666;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .summary-box {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .summary-box h3 {
+            margin-top: 0;
+            color: #856404;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background-color: white;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #0078d4;
+            color: white;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .violation {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin: 2px;
+            display: inline-block;
+        }
+        .site-url {
+            color: #0078d4;
+            text-decoration: none;
+        }
+        .site-url:hover {
+            text-decoration: underline;
+        }
+        .action-items {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .action-items h3 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 14px;
+            color: #666;
+        }
+        .priority-high {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+        .priority-medium {
+            color: #f57c00;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>🔍 SharePoint Site Compliance Report</h1>
+            <div class="date">Generated on: [DATE]</div>
+        </div>
+
+        <div class="summary-box">
+            <h3>⚠️ Summary</h3>
+            <p>Our automated compliance scan has identified <strong>[x]</strong> SharePoint sites that do not meet Rothesay organizational default settings. Please review the violations below and take appropriate action.</p>
+        </div>
+
+        <h2>Non-Compliant Sites</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Site Name</th>
+                    <th>URL</th>
+                    <th>Owner(s)</th>
+                    <th>Violations</th>
+                </tr>
+            </thead>
+            <tbody>
+                [content]
+            </tbody>
+        </table>
+
+        <div class="action-items">
+            <h3>📋 Required Actions</h3>
+            <ul>
+                <li><strong>Site Owners:</strong> Please review your sites and address the violations within 14 days</li>
+                <li><strong>Storage Issues:</strong> Clean up unnecessary files or request additional quota if justified</li>
+                <li><strong>Custom Scripts:</strong> Disable unless specifically required for business functionality</li>
+                <li><strong>Sensitivity Labels:</strong> Apply appropriate classification labels based on content</li>
+                <li><strong>Sharing Settings:</strong> Ensure external sharing aligns with data classification</li>
+            </ul>
+        </div>
+
+        <h3>📊 Compliance Standards</h3>
+        <table>
+            <tr>
+                <th>Setting</th>
+                <th>Required Value</th>
+                <th>Purpose</th>
+            </tr>
+            <tr>
+                <td>Conditional Access Policy</td>
+                <td>AllowFullAccess</td>
+                <td>Security compliance</td>
+            </tr>
+            <tr>
+                <td>Storage Quota</td>
+                <td>≤ 100 GB</td>
+                <td>Resource management</td>
+            </tr>
+            <tr>
+                <td>Custom Scripts</td>
+                <td>Disabled</td>
+                <td>Security risk mitigation</td>
+            </tr>
+            <tr>
+                <td>Sharing Setting</td>
+                <td>Disabled</td>
+                <td>Data protection</td>
+            </tr>
+            <tr>
+                <td>Sensitivity Label</td>
+                <td>Required</td>
+                <td>Information governance</td>
+            </tr>
+        </table>
+
+        <div class="footer">
+            <p><strong>Questions?</strong> Contact the IT Team at: <a href="mailto:IT ServiceDesk">IT Service Desk</a></p>
+            <p>This is an automated daily report.</p>
+        </div>
+    </div>
+</body>
+</html>
